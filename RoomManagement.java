@@ -1,60 +1,78 @@
 import javax.swing.*;
+import javax.swing.table.DefaultTableModel;
 import java.awt.*;
-import java.awt.event.*;
 import java.sql.*;
 
-public class LoginFrame extends JFrame {
-    JTextField userField;
-    JPasswordField passField;
-    JButton loginBtn;
+public class RoomManagement extends JFrame {
+    JTextField roomNumberField, typeField, priceField;
+    JTable table;
+    DefaultTableModel model;
 
-    public LoginFrame() {
-        setTitle("Hotel Booking - Login");
-        setSize(300, 200);
-        setDefaultCloseOperation(EXIT_ON_CLOSE);
+    public RoomManagement() {
+        setTitle("Manage Rooms");
+        setSize(600, 400);
         setLocationRelativeTo(null);
 
-        JPanel panel = new JPanel(new GridLayout(3, 2));
-        panel.add(new JLabel("Username:"));
-        userField = new JTextField();
-        panel.add(userField);
+        JPanel panel = new JPanel(new GridLayout(4, 2));
+        panel.add(new JLabel("Room Number:"));
+        roomNumberField = new JTextField();
+        panel.add(roomNumberField);
 
-        panel.add(new JLabel("Password:"));
-        passField = new JPasswordField();
-        panel.add(passField);
+        panel.add(new JLabel("Type:"));
+        typeField = new JTextField();
+        panel.add(typeField);
 
-        loginBtn = new JButton("Login");
-        panel.add(loginBtn);
+        panel.add(new JLabel("Price:"));
+        priceField = new JTextField();
+        panel.add(priceField);
 
-        add(panel);
-        loginBtn.addActionListener(e -> login());
+        JButton addBtn = new JButton("Add Room");
+        panel.add(addBtn);
+
+        add(panel, BorderLayout.NORTH);
+
+        model = new DefaultTableModel(new String[]{"ID", "Number", "Type", "Price", "Status"}, 0);
+        table = new JTable(model);
+        add(new JScrollPane(table), BorderLayout.CENTER);
+
+        addBtn.addActionListener(e -> addRoom());
+        loadRooms();
     }
 
-    private void login() {
-        String username = userField.getText();
-        String password = String.valueOf(passField.getPassword());
+    private void addRoom() {
+        String number = roomNumberField.getText();
+        String type = typeField.getText();
+        String price = priceField.getText();
 
         try (Connection con = DBConnection.getConnection()) {
-            String query = "SELECT * FROM users WHERE username=? AND password=?";
+            String query = "INSERT INTO rooms (room_number, type, price) VALUES (?, ?, ?)";
             PreparedStatement pst = con.prepareStatement(query);
-            pst.setString(1, username);
-            pst.setString(2, password);
-
-            ResultSet rs = pst.executeQuery();
-            if (rs.next()) {
-                String role = rs.getString("role");
-                JOptionPane.showMessageDialog(this, "Login Successful!");
-                dispose();
-                new MainMenu(role).setVisible(true);
-            } else {
-                JOptionPane.showMessageDialog(this, "Invalid credentials!");
-            }
+            pst.setString(1, number);
+            pst.setString(2, type);
+            pst.setDouble(3, Double.parseDouble(price));
+            pst.executeUpdate();
+            JOptionPane.showMessageDialog(this, "Room added successfully!");
+            loadRooms();
         } catch (Exception ex) {
             ex.printStackTrace();
         }
     }
 
-    public static void main(String[] args) {
-        new LoginFrame().setVisible(true);
+    private void loadRooms() {
+        model.setRowCount(0);
+        try (Connection con = DBConnection.getConnection()) {
+            ResultSet rs = con.createStatement().executeQuery("SELECT * FROM rooms");
+            while (rs.next()) {
+                model.addRow(new Object[]{
+                        rs.getInt("room_id"),
+                        rs.getString("room_number"),
+                        rs.getString("type"),
+                        rs.getDouble("price"),
+                        rs.getString("status")
+                });
+            }
+        } catch (Exception ex) {
+            ex.printStackTrace();
+        }
     }
 }
